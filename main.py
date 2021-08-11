@@ -34,10 +34,10 @@ class Player:
         self.x += self.move
 
     def move_down(self):
-        self.y += self.move
+        self.y += 1
 
     def move_up(self):
-        self.y -= self.move
+        self.y -= 1
 
     def get_mask(self):
         return pygame.mask.from_surface(self.dude)
@@ -65,7 +65,6 @@ class Obstacles:
         spike_ball = pygame.transform.scale(pygame.image.load('Spike ball (1).png').convert_alpha(), (90, 90))
 
         def __init__(self):
-            # spike balls
             self.rotateRate = 3
             self.distance = 200
             self.y = 800
@@ -104,36 +103,45 @@ class Obstacles:
         right_wall = pygame.transform.flip(left_wall, True, False)
 
         def __init__(self):
-            self.gap = 150
-            self.y = 1500
-            self.x = random.randrange(70, 263)
+            self.midx = 212
+            self.midy = 28
+            self.gap = 150 + self.midx + self.midx
+            self.y = 1000 - self.midy
+            self.x = random.randrange(70, 263) - self.midx
             self.rightx = self.x + self.gap
+            self.correction_x = 165
+            self.correction_y = 23
 
         def draw_wall(self):
             # left wall
-            left_wall_rect = self.left_wall.get_rect(midright=(self.x, self.y))
+            left_wall_rect = self.left_wall.get_rect(center=(self.x, self.y))
             # right wall
-            right_wall_rect = self.right_wall.get_rect(midleft=(self.rightx, self.y))
+            right_wall_rect = self.right_wall.get_rect(center=(self.rightx, self.y))
             # put wall on screen
             screen.blit(self.left_wall, left_wall_rect)
             screen.blit(self.right_wall, right_wall_rect)
             self.y -= Obstacle_move_speed
+
+        def get_mask_left(self):
+            return pygame.mask.from_surface(self.left_wall)
+
+        def get_mask_right(self):
+            return pygame.mask.from_surface(self.right_wall)
 
         def collision(self, player):
 
             # TODO fix the collision saying true even though I am not hitting it
             # getting masks
             dude_mask = player.get_mask()
-            left_wall_mask = pygame.mask.from_surface(self.left_wall)
-            right_wall_mask = pygame.mask.from_surface(self.right_wall)
+            wall_mask = self.get_mask_left()
 
             # finding the overlap
-            offset_left = (self.x - round(player.x), round(self.y) - round(player.y))
-            offset_right = (self.rightx - round(player.x), round(self.y) - round(player.y))
+            offset_left = (self.x - round(player.x) + self.correction_x, round(self.y) - round(player.y)-self.correction_y)
+            offset_right = (self.rightx - round(player.x) + self.correction_x, round(self.y) - round(player.y)-self.correction_y)
 
             # checking for collision
-            result_left = left_wall_mask.overlap(dude_mask, offset_left)
-            result_right = right_wall_mask.overlap(dude_mask, offset_right)
+            result_left = wall_mask.overlap(dude_mask, offset_left)
+            result_right = wall_mask.overlap(dude_mask, offset_right)
 
             if result_left or result_right:
                 return True
@@ -142,12 +150,12 @@ class Obstacles:
 
 
 # draws window
-def draw_win(backg, player, wall, spikeball):
+def draw_win(backg, player, wall):
     # drawing stuff on screen
     Backg.draw_bg(backg)
     Player.draw(player)
-    Obstacles.SpikeBall.draw_spike_ball(spikeball)
     Obstacles.Wall.draw_wall(wall)
+    #Obstacles.SpikeBall.draw_spike_ball(spikeball)
 
     pygame.display.update()
     clock.tick(60)
@@ -159,7 +167,7 @@ def run():
     # pre game start
     me = Player(216, 50)
     backg = Backg()
-    spikeball = Obstacles.SpikeBall()
+    #spikeball = Obstacles.SpikeBall()
     wall = Obstacles.Wall()
 
     # moving left and right for testing
@@ -180,27 +188,33 @@ def run():
                     move_left = True
                 if event.key == pygame.K_d:
                     move_right = True
+                if event.key == pygame.K_w:
+                    me.move_up()
+                if event.key == pygame.K_s:
+                    me.move_down()
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_a:
                     move_left = False
                 if event.key == pygame.K_d:
                     move_right = False
+                if event.key == pygame.K_w:
+                    move_up = False
 
-        # true of false for testing purposes
+        # true or false for testing purposes
         if move_right:
             me.move_right()
-        if move_left:
+        elif move_left:
             me.move_left()
         else:
             pass
 
         if Obstacles.Wall.collision(wall, me):
-            print("PAIN!")
-        if Obstacles.SpikeBall.collision(spikeball, me):
-            print("PAIN!")
+            print("Wall!")
+        # elif Obstacles.SpikeBall.collision(spikeball, me):
+            # print("Spike!")
         else:
             pass
-        draw_win(backg, me, wall, spikeball)
+        draw_win(backg, me, wall)
 
 
 run()
