@@ -1,3 +1,4 @@
+import os.path
 import pygame
 import random
 import neat
@@ -10,13 +11,13 @@ bg_movement = 5
 clock = pygame.time.Clock()
 Obstacle_move_speed = 3
 
-# sprites
+# background
 bg = pygame.transform.scale(pygame.image.load('Background.png').convert(), (432, 768))
 
 
 # player/ai class
 class Player(pygame.sprite.Sprite):
-    dude = pygame.transform.scale(pygame.image.load('TrumpFace.png').convert_alpha(), (100, 100))
+    dude = pygame.transform.scale(pygame.image.load('TrumpFace.png').convert_alpha(), (66, 86))
 
     def __init__(self, x, y):
         super().__init__()
@@ -60,97 +61,44 @@ class Backg:
         self.y -= 5
 
 
-# TODO create a random obstacle picker that makes an obstacle appear
-class SpikeBall:
-    spike_ball = pygame.transform.scale(pygame.image.load('Spike ball (1).png').convert_alpha(), (90, 90))
+class SpikeBall(pygame.sprite.Sprite):
+    spike_ball = pygame.image.load('Spikeballs.png').convert_alpha()
 
     def __init__(self, y):
-        self.rotateRate = 3
-        self.distance = 200
+        self.rotateRate = 1
         self.y = y
-        self.x = random.randrange(75, 200)
+        self.x = 216
         self.degrees = 0
-        self.x2 = self.x + self.distance
 
-    def draw_spike_ball(self):
-        rotated_img = pygame.transform.rotate(self.spike_ball, self.degrees)
-        spike_rect = rotated_img.get_rect(center=(self.x, self.y))
-        spike_rect2 = rotated_img.get_rect(center=(self.x2, self.y))
-        screen.blit(rotated_img, spike_rect)
-        screen.blit(rotated_img, spike_rect2)
+        super().__init__()
+        self.image = self.spike_ball
+        self.rect = self.image.get_rect(center=(self.x, self.y))
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
         self.y -= Obstacle_move_speed
-        self.degrees += self.rotateRate
-
-    def get_mask(self):
-        return pygame.mask.from_surface(self.spike_ball)
-
-    def collision(self, player):
-        spikeball_mask = self.get_mask()
-        dude_mask = player.get_mask()
-
-        offset = (self.x - round(player.x), round(self.y) - round(player.y))
-        offset2 = (self.x2 - round(player.x), round(self.y) - round(player.y))
-        result = spikeball_mask.overlap(dude_mask, offset)
-        result2 = spikeball_mask.overlap(dude_mask, offset2)
-
-        if result or result2:
-            return True
-        else:
-            return False
+        self.rect.center = (self.x, self.y)
 
 
-class Wall:
-    left_wall = pygame.image.load('Wall.png').convert_alpha()
-    right_wall = pygame.transform.flip(left_wall, True, False)
+class Wall(pygame.sprite.Sprite):
+    wall = pygame.image.load('Wall.png').convert_alpha()
 
     def __init__(self, y):
-        self.midx = 212
-        self.midy = 28
-        self.gap = 150 + self.midx + self.midx
-        self.y = y - self.midy
-        self.x = random.randrange(70, 263) - self.midx
-        self.rightx = self.x + self.gap
-        self.correction_x = 165
-        self.correction_y = 23
+        self.x = random.randrange(150, 282)
+        self.y = y
 
-    def draw_wall(self):
-        # left wall
-        left_wall_rect = self.left_wall.get_rect(center=(self.x, self.y))
-        # right wall
-        right_wall_rect = self.right_wall.get_rect(center=(self.rightx, self.y))
-        # put wall on screen
-        screen.blit(self.left_wall, left_wall_rect)
-        screen.blit(self.right_wall, right_wall_rect)
+        # create sprite
+        super().__init__()
+        self.image = self.wall
+        self.rect = self.image.get_rect(center=(self.x, self.y))
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
         self.y -= Obstacle_move_speed
-
-    def get_mask_left(self):
-        return pygame.mask.from_surface(self.left_wall)
-
-    def get_mask_right(self):
-        return pygame.mask.from_surface(self.right_wall)
-
-    def collision(self, player):
-
-        # getting masks
-        dude_mask = player.get_mask()
-        wall_mask = self.get_mask_left()
-
-        # finding the overlap
-        offset_left = (self.x - round(player.x) + self.correction_x, round(self.y) - round(player.y)-self.correction_y)
-        offset_right = (self.rightx - round(player.x) + self.correction_x, round(self.y) - round(player.y)-self.correction_y)
-
-        # checking for collision
-        result_left = wall_mask.overlap(dude_mask, offset_left)
-        result_right = wall_mask.overlap(dude_mask, offset_right)
-
-        if result_left or result_right:
-            return True
-        else:
-            return False
+        self.rect.center = (self.x, self.y)
 
 
 class Laser(pygame.sprite.Sprite):
-    # TODO make this a sprite class thing, need to learn about them
     laser_img = pygame.image.load("Laser.png").convert_alpha()
 
     def __init__(self, y):
@@ -158,8 +106,6 @@ class Laser(pygame.sprite.Sprite):
         self.y = y
         self.x = 216
         self.degrees = 0
-        # self.correction_x = 230
-        # self.correction_y = 220
         super().__init__()
         self.image = self.rotate_laser()
         self.rect = self.image.get_rect()
@@ -167,7 +113,7 @@ class Laser(pygame.sprite.Sprite):
 
     def update(self):
         self.degrees += self.rotateRate
-        # self.y -= Obstacle_move_speed
+        self.y -= Obstacle_move_speed
         self.image = self.rotate_laser()
         self.rect = self.image.get_rect()
         self.rect.center = (self.x, self.y)
@@ -177,39 +123,78 @@ class Laser(pygame.sprite.Sprite):
         return rotated_img
 
 
+def pick_obstacle(laser, spikeball, wall):
+    # Putting things in the list to pick later
+    obstacle_list = [laser, spikeball, wall]
+    obstacle = random.choice(obstacle_list)
+    return obstacle
+
+
+def draw_score(points):
+        color = (0, 255, 0)
+        font = pygame.font.SysFont("inkfree", 50)
+        text = font.render(str(int(points)), True, color)
+        text_rect = text.get_rect(midright=(420, 70))
+        screen.blit(text, text_rect)
+
+
 # draws window
-def draw_win(backg, player_sprite, obstacle_group):
+def draw_win(backg, player_sprite, obstacle_group, points):
     # drawing stuff on screen
     Backg.draw_bg(backg)
     obstacle_group.draw(screen)
     obstacle_group.update()
     player_sprite.draw(screen)
     player_sprite.update()
-    # Wall.draw_wall(wall)
-    # SpikeBall.draw_spike_ball(spikeball)
+    draw_score(points)
 
     pygame.display.update()
     clock.tick(60)
 
 
-def run():
+def main(genomes, config):
     pygame.init()
+    # NEAT lists
+    nets = []
+    ge = []
+    trumps = []
 
-    # declaring sprites
-    trump = Player(216, 50)
+    for g in genomes:
+        net = neat.nn.FeedForwardNetwork(g, config)
+        nets.append(net)
+        trumps.append(Player(216, 100))
+        g.fitness = 0
+        ge.append(g)
+
+    # objects
     backg = Backg()
-    laser = Laser(500)
-    # spikeball = SpikeBall(900)
-    # wall = Wall(1200)
+    laser = Laser(1000)
+    spikeball = SpikeBall(1000)
+    wall = Wall(1000)
+    points = 0
+
+    # Obstacle timer
+    SPAWNOBSTACLE = pygame.USEREVENT
+    pygame.time.set_timer(SPAWNOBSTACLE, 3000)
+
+    # Points timer
+    ADDPOINT = pygame.USEREVENT + 1
+    pygame.time.set_timer(ADDPOINT, 2000)
+
+    # create first obstacle
+    obstacle = pick_obstacle(laser, spikeball, wall)
 
     obstacle_group = pygame.sprite.Group()
-    obstacle_group.add(laser)
+    obstacle_group.add(obstacle)
 
+    # adding player to sprite group
     player_sprite = pygame.sprite.Group()
-    player_sprite.add(trump)
+    player_sprite.add(trumps)
 
     # game starts
     while True:
+
+        # TODO create obstacle focus function so they focus on the obstacle in front of them
 
         for event in pygame.event.get():
             # exit if you quit pygame
@@ -217,15 +202,69 @@ def run():
                 pygame.quit()
                 sys.exit()
 
-        draw_win(backg, player_sprite, obstacle_group)
+            # spawning in an obstacle
+            if event.type == SPAWNOBSTACLE:
+                laser = Laser(1000)
+                spikeball = SpikeBall(1000)
+                wall = Wall(1000)
+
+                obstacle = pick_obstacle(laser, spikeball, wall)
+
+                obstacle_group.add(obstacle)
+
+            if event.type == ADDPOINT:
+                points += 1
+
+                # giving fitness to trumps for getting a better score
+                for g in ge:
+                    g.fitness += 5
 
         # collisions
+
+        # creating an empty list
         collide_list = None
+
+        # looping through obstacles
         for o in obstacle_group:
-            collide_list = pygame.sprite.collide_mask(trump, o)
+            for x, trump in enumerate(trumps):
+                # seeing if they collided with obstacles
+                collide_list = pygame.sprite.collide_mask(trump, o)
 
-        if collide_list:
-            print("PAIN")
+                # if they did then remove from lists
+                if collide_list:
+                    ge[x].fitness -= 1
+                    trumps.pop(x)
+                    nets.pop(x)
+                    ge.pop(x)
+
+            # removing obstacles from the obstacle group so I save memory
+            if o.y <= -100:
+                obstacle_group.remove(o)
+
+        for x, trump in enumerate(trumps):
+            if trump.rect.midtop[1] < 0 or trump.rect.midbottom[1] > 768 or trump.rect.midright[0] > 432 or trump.rect.midleft[0] < 0:
+                trumps.pop(x)
+                nets.pop(x)
+                ge.pop(x)
+
+        draw_win(backg, player_sprite, obstacle_group, points)
 
 
-run()
+def run(config_path):
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                                config_path)
+
+    population = neat.Population(config)
+
+    population.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    population.add_reporter(stats)
+
+    winner = population.run(main(), 50)
+
+
+if __name__ == "__main__":
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir, "config.txt")
+    run(config_path)
