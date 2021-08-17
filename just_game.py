@@ -182,9 +182,6 @@ def main():
 
     # game starts
     while True:
-
-        # TODO create obstacle focus function so they focus on the obstacle in front of them
-
         for event in pygame.event.get():
             # exit if you quit pygame
             if event.type == pygame.QUIT:
